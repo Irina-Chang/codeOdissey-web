@@ -1,0 +1,58 @@
+import { api } from '../../config/axios'
+
+export type LoginRequest = {
+  email: string
+  password: string
+}
+export type LoginResponse = {
+  accessToken: string
+  refreshToken: string
+}
+
+export type LoginActionResponse = {
+  success: boolean
+  error: Error | null
+}
+
+const minutes = 15
+let timeout: number | null = null;
+
+export const loginAction = async (values: LoginRequest):Promise<LoginActionResponse> => {
+  try {
+    const resp = await api.post("/login",values)
+    const {data} = resp
+    configure(data)
+    return {
+      success:true,
+      error: null
+    }
+  } catch(err:unknown) {
+    return {
+      success:false,
+      error: err as Error
+    }
+  }
+}
+
+const configure = (loginResponse:LoginResponse) => {
+  api.defaults.headers.common['Authorization'] = `Bearer ${loginResponse.accessToken}`
+  refreshTokenScheduling(loginResponse.refreshToken)
+}
+
+const refreshTokenScheduling = (input:string) => {
+    timeout = setTimeout(() => {
+      refreshTokenRequest(input)
+    }, minutes  * 60 * 1000)
+}
+
+const refreshTokenRequest = async (refreshToken:string) => {
+  try {
+    const resp = await api.post("/refreshtoken",{refreshToken})
+    const {data} = resp
+    configure(data)
+
+  } catch(err:unknown) {
+    console.error(err)
+    // TODO finalizara sessao usuario
+  }
+} 
